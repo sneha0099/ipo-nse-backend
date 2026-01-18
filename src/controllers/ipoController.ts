@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../db";
 
-// Get IPO details by symbol
 export const getIpoBySymbol = async (req: Request, res: Response) => {
   try {
     const { symbol } = req.params;
@@ -32,7 +31,6 @@ export const getIpoBySymbol = async (req: Request, res: Response) => {
   }
 };
 
-// Get IPO subscriptions by symbol
 export const getIpoSubscriptions = async (req: Request, res: Response) => {
   try {
     const { symbol } = req.params;

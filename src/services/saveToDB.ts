@@ -2,8 +2,7 @@ import prisma from "../db";
 
 export async function saveIPO(data: any) {
   console.log("Saving IPO data...");
-  
-  // Save IPO details from Issue Information
+
   if (data.issueInfo && Object.keys(data.issueInfo).length > 0) {
     await prisma.ipoDetails.upsert({
       where: { symbol: data.symbol },
@@ -34,7 +33,6 @@ export async function saveIPO(data: any) {
     console.log(`✅ Saved IPO details for ${data.symbol}`);
   }
 
-  // Save subscription data
   if (data.subscriptions && data.subscriptions.length > 0) {
     for (const sub of data.subscriptions) {
       await prisma.ipoSubscription.create({

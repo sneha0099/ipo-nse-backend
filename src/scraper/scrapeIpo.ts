@@ -17,10 +17,8 @@ export async function scrapeIPO(symbol: string) {
   });
   const page = await context.newPage();
 
-  // Listen to console events from the browser
   page.on('console', msg => console.log('BROWSER:', msg.text()));
 
-  // Visit homepage first to set cookies
   console.log('Visiting NSE homepage to set cookies...');
   await page.goto('https://www.nseindia.com', { waitUntil: "domcontentloaded", timeout: 60000 });
   await page.waitForTimeout(2000);
@@ -29,33 +27,26 @@ export async function scrapeIPO(symbol: string) {
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
 
   console.log("Waiting for IPO data to load...");
-  // Give time for dynamic content to load
   await page.waitForTimeout(5000);
   
-  // Click on "Issue Information" tab to get IPO details
   console.log("Clicking on 'Issue Information' tab...");
   try {
-    // Try multiple selectors to find the tab
     const issueInfoTab = await page.locator('button:has-text("Issue Information"), a:has-text("Issue Information"), [role="tab"]:has-text("Issue Information")').first();
     await issueInfoTab.click();
-    // Wait for the table to be visible
     await page.waitForSelector('table', { timeout: 5000 });
-    await page.waitForTimeout(3000); // Wait longer for content to load
+    await page.waitForTimeout(3000); 
     console.log("Issue Information tab clicked, table is visible");
     
-    // Save screenshot after clicking
     await page.screenshot({ path: 'issue-info-screenshot.png', fullPage: true });
     console.log("Issue Info screenshot saved to issue-info-screenshot.png");
   } catch (error) {
     console.log("Could not click Issue Information tab or find table:", error);
   }
   
-  // Extract Issue Information data
   console.log("Extracting Issue Information data...");
   const issueInfoData = await page.evaluate(() => {
     const issueInfo: Record<string, string> = {};
     
-    // Look for all tables
     const tables = document.querySelectorAll('table');
     console.log(`Found ${tables.length} tables on Issue Information tab`);
     
@@ -63,7 +54,6 @@ export async function scrapeIPO(symbol: string) {
       const allRows = Array.from(table.querySelectorAll('tr'));
       console.log(`  Table ${tableIdx} has ${allRows.length} rows`);
       
-      // Log first 10 rows of each table to see the actual structure
       allRows.slice(0, 10).forEach((row, rowIdx) => {
         const cells = Array.from(row.querySelectorAll('td, th'));
         if (cells.length >= 2) {
@@ -73,21 +63,18 @@ export async function scrapeIPO(symbol: string) {
         }
       });
       
-      // Look for rows with labels like "Symbol", "Issue Period", etc.
       allRows.forEach((row) => {
-        const cells = Array.from(row.querySelectorAll('td, th'));  // Include both td and th
+        const cells = Array.from(row.querySelectorAll('td, th'));
         if (cells.length >= 2) {
           const key = cells[0]?.textContent?.trim() || '';
           const value = cells[1]?.textContent?.trim() || '';
           
-          // Check if this looks like an Issue Information field
           const issueInfoFields = ['Symbol', 'Issue Period', 'Issue Size', 'Issue Type', 
                                    'Price Range', 'Face Value', 'Discount', 
                                    'Cut-off time for UPI Mandate Confirmation', 
                                    'Minimum Investment'];
           
-          if (key && value && key.length < 50 && value.length > 0) {  // Avoid long text like SEBI notices
-            // Log all candidates being tested
+          if (key && value && key.length < 50 && value.length > 0) {  
             console.log(`    Testing key: "${key}" (length: ${key.length})`);
             
             if (issueInfoFields.includes(key)) {
@@ -105,8 +92,7 @@ export async function scrapeIPO(symbol: string) {
   });
   
   console.log(`Found ${Object.keys(issueInfoData).length} issue info fields from Issue Information tab`);
-  
-  // Now click on "Bid Details" tab to get subscription data
+
   console.log("Clicking on 'Bid Details' tab...");
   try {
     const bidDetailsTab = page.locator('text="Bid Details"').first();
@@ -117,13 +103,11 @@ export async function scrapeIPO(symbol: string) {
     console.log("Could not click Bid Details tab");
   }
   
-  // Take screenshot for debugging
   await page.screenshot({ path: 'debug-screenshot.png', fullPage: true });
   console.log("Screenshot saved to debug-screenshot.png");
 
   console.log("Extracting subscription data from Bid Details...");
   const bidDetailsData = await page.evaluate(() => {
-    // Find "Updated as on" text using Array.from and find
     let lastUpdated = null;
     const allDivs = Array.from(document.querySelectorAll('div'));
     const updatedDiv = allDivs.find(div => div.textContent?.includes('Updated as on'));
@@ -137,24 +121,18 @@ export async function scrapeIPO(symbol: string) {
     const lotDistributions: any[] = [];
     const applicationBreakups: any[] = [];
 
-    // Find all tables
     const tables = document.querySelectorAll('table');
     
-    // Track if we've already found subscription table (to avoid duplicates from multiple tables)
     let foundSubscriptionTable = false;
     
-    // Process tables for subscription data, lot distribution, etc.
     tables.forEach((table) => {
       const rows = Array.from(table.querySelectorAll('tbody tr'));
       const headers = Array.from(table.querySelectorAll('thead th')).map(h => h.textContent?.trim() || '');
-      
-      // Identify table type by headers
       const hasOfferedApplied = headers.some(h => h.includes('OFFERED')) && headers.some(h => h.includes('BID FOR'));
       const hasLotQty = headers.some(h => h.includes('Lot')) && headers.some(h => h.includes('Qty'));
       const hasReservedApplied = headers.some(h => h.includes('Reserved') || h.includes('RESERVED')) && 
                                  headers.some(h => h.includes('Applied') || h.includes('APPLIED'));
       
-      // Skip if we've already found a subscription table (to avoid duplicate data from multiple timeframes)
       if (hasOfferedApplied && foundSubscriptionTable) {
         return;
       }
@@ -168,7 +146,6 @@ export async function scrapeIPO(symbol: string) {
         if (!category || category === '-') return;
 
         if (hasOfferedApplied) {
-          // NSE Bid Details table (main subscription table)
           const offered = cells[2]?.textContent?.trim().replace(/,/g, '') || '0';
           const applied = cells[3]?.textContent?.trim().replace(/,/g, '') || '0';
           const times = cells[4]?.textContent?.trim().replace(/,/g, '') || '0';
@@ -181,7 +158,6 @@ export async function scrapeIPO(symbol: string) {
             times: parseFloat(times) || 0
           });
         } else if (hasLotQty) {
-          // Lot distribution table
           const lots = cells[1]?.textContent?.trim().replace(/,/g, '') || '0';
           const qty = cells[2]?.textContent?.trim().replace(/,/g, '') || '0';
           const amount = cells[3]?.textContent?.trim().replace(/,/g, '') || '0';
@@ -195,7 +171,6 @@ export async function scrapeIPO(symbol: string) {
             reserved: parseInt(reserved) || 0
           });
         } else if (hasReservedApplied) {
-          // Application breakup table
           const reserved = cells[1]?.textContent?.trim().replace(/,/g, '').replace(/-/g, '0') || '0';
           const applied = cells[2]?.textContent?.trim().replace(/,/g, '').replace(/-/g, '0') || '0';
           const times = cells[3]?.textContent?.trim().replace(/,/g, '').replace(/-/g, '0') || '0';
@@ -209,7 +184,6 @@ export async function scrapeIPO(symbol: string) {
         }
       });
       
-      // Mark that we found a subscription table
       if (hasOfferedApplied && subscriptions.length > 0) {
         foundSubscriptionTable = true;
       }
@@ -226,8 +200,7 @@ export async function scrapeIPO(symbol: string) {
 
   await browser.close();
   console.log("Browser closed");
-  
-  // Merge Issue Information data from the first tab
+
   const mergedData = {
     ...bidDetailsData,
     issueInfo: issueInfoData

@@ -27,7 +27,6 @@ dotenv.config()
 import { PrismaNeonHttp } from '@prisma/adapter-neon'
 import { PrismaClient } from '@prisma/client'
 
-// Use HTTP adapter - pass connection string directly
 const adapter = new PrismaNeonHttp(process.env.DATABASE_URL!, { fullResults: false })
 const prisma = new PrismaClient({ adapter })
 
