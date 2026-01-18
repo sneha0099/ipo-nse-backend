@@ -15,10 +15,8 @@ app.get("/", (req, res) => {
     message: "IPO Backend API",
     version: "1.0.0",
     endpoints: {
-      ipos: "/api/ipos",
       ipoBySymbol: "/api/ipos/:symbol",
-      subscriptions: "/api/ipos/:symbol/subscriptions",
-      complete: "/api/ipos/:symbol/complete",
+      subscriptions: "/api/ipos/:symbol/subscriptions"
     },
   });
 });
