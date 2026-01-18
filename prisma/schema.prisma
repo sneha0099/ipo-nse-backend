@@ -1,0 +1,40 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model IpoDetails {
+  id                    Int      @id @default(autoincrement())
+  symbol                String   @unique
+  issueSize             String?
+  issuePeriod           String?
+  issueType             String?
+  priceRange            String?
+  faceValue             String?
+  discount              String?
+  cutOffTime            String?
+  minInvestment         String?
+  lastUpdated           DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([symbol])
+}
+
+model IpoSubscription {
+  id                Int      @id @default(autoincrement())
+  symbol            String
+  serialNumber      String?  // e.g., "1", "1(a)", "2.1", "2.1(a)", etc.
+  category          String
+  offered           Float?    // in crores or actual shares
+  applied           Float?    // in crores or actual shares  
+  demand            Float?    // in crores
+  times             Float?    // subscription ratio
+  createdAt         DateTime @default(now())
+
+  @@index([symbol])
+  @@index([symbol, serialNumber])
+}
