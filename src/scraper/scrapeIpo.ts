@@ -3,7 +3,6 @@ import { chromium } from "playwright";
 export async function scrapeIPO(symbol: string) {
   const url = `https://www.nseindia.com/market-data/issue-information?symbol=${symbol}&series=EQ&type=Active`;
 
-  console.log(`Launching browser for ${symbol}...`);
   const browser = await chromium.launch({ 
     headless: false,
     args: ['--disable-blink-features=AutomationControlled']
@@ -17,49 +16,37 @@ export async function scrapeIPO(symbol: string) {
   });
   const page = await context.newPage();
 
-  page.on('console', msg => console.log('BROWSER:', msg.text()));
-
-  console.log('Visiting NSE homepage to set cookies...');
   await page.goto('https://www.nseindia.com', { waitUntil: "domcontentloaded", timeout: 60000 });
   await page.waitForTimeout(2000);
 
-  console.log(`Navigating to ${url}...`);
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
 
-  console.log("Waiting for IPO data to load...");
   await page.waitForTimeout(5000);
   
-  console.log("Clicking on 'Issue Information' tab...");
   try {
     const issueInfoTab = await page.locator('button:has-text("Issue Information"), a:has-text("Issue Information"), [role="tab"]:has-text("Issue Information")').first();
     await issueInfoTab.click();
     await page.waitForSelector('table', { timeout: 5000 });
     await page.waitForTimeout(3000); 
-    console.log("Issue Information tab clicked, table is visible");
     
     await page.screenshot({ path: 'issue-info-screenshot.png', fullPage: true });
-    console.log("Issue Info screenshot saved to issue-info-screenshot.png");
   } catch (error) {
     console.log("Could not click Issue Information tab or find table:", error);
   }
   
-  console.log("Extracting Issue Information data...");
   const issueInfoData = await page.evaluate(() => {
     const issueInfo: Record<string, string> = {};
     
     const tables = document.querySelectorAll('table');
-    console.log(`Found ${tables.length} tables on Issue Information tab`);
     
     tables.forEach((table, tableIdx) => {
       const allRows = Array.from(table.querySelectorAll('tr'));
-      console.log(`  Table ${tableIdx} has ${allRows.length} rows`);
       
       allRows.slice(0, 10).forEach((row, rowIdx) => {
         const cells = Array.from(row.querySelectorAll('td, th'));
         if (cells.length >= 2) {
           const key = cells[0]?.textContent?.trim().substring(0, 30) || '';
           const value = cells[1]?.textContent?.trim().substring(0, 50) || '';
-          console.log(`    Row ${rowIdx}: [${key}] = [${value}]`);
         }
       });
       
@@ -75,13 +62,10 @@ export async function scrapeIPO(symbol: string) {
                                    'Minimum Investment'];
           
           if (key && value && key.length < 50 && value.length > 0) {  
-            console.log(`    Testing key: "${key}" (length: ${key.length})`);
             
             if (issueInfoFields.includes(key)) {
               issueInfo[key] = value;
-              console.log(`  ✓ MATCHED and Extracted: ${key} = ${value.substring(0, 50)}`);
             } else if (key.includes('Symbol') || key.includes('Issue')) {
-              console.log(`    Near-match but not exact: "${key}"`);
             }
           }
         }
@@ -91,22 +75,16 @@ export async function scrapeIPO(symbol: string) {
     return issueInfo;
   });
   
-  console.log(`Found ${Object.keys(issueInfoData).length} issue info fields from Issue Information tab`);
-
-  console.log("Clicking on 'Bid Details' tab...");
   try {
     const bidDetailsTab = page.locator('text="Bid Details"').first();
     await bidDetailsTab.click();
     await page.waitForTimeout(2000);
-    console.log("Bid Details tab clicked");
   } catch (error) {
     console.log("Could not click Bid Details tab");
   }
   
   await page.screenshot({ path: 'debug-screenshot.png', fullPage: true });
-  console.log("Screenshot saved to debug-screenshot.png");
 
-  console.log("Extracting subscription data from Bid Details...");
   const bidDetailsData = await page.evaluate(() => {
     let lastUpdated = null;
     const allDivs = Array.from(document.querySelectorAll('div'));
@@ -199,17 +177,11 @@ export async function scrapeIPO(symbol: string) {
   });
 
   await browser.close();
-  console.log("Browser closed");
 
   const mergedData = {
     ...bidDetailsData,
     issueInfo: issueInfoData
   };
-
-  console.log(`Found ${Object.keys(mergedData.issueInfo).length} issue info fields`);
-  console.log(`Found ${mergedData.subscriptions.length} subscription entries`);
-  console.log(`Found ${mergedData.lotDistributions.length} lot distribution entries`);
-  console.log(`Found ${mergedData.applicationBreakups.length} application breakup entries`);
 
   return { symbol, ...mergedData };
 }

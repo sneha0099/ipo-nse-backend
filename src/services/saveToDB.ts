@@ -30,7 +30,7 @@ export async function saveIPO(data: any) {
         lastUpdated: data.lastUpdated ? new Date(data.lastUpdated) : null,
       },
     });
-    console.log(`✅ Saved IPO details for ${data.symbol}`);
+    console.log(`Saved IPO details for ${data.symbol}`);
   }
 
   if (data.subscriptions && data.subscriptions.length > 0) {
@@ -46,9 +46,9 @@ export async function saveIPO(data: any) {
         },
       });
     }
-    console.log(`✅ Saved ${data.subscriptions.length} subscription entries`);
+    console.log(`Saved ${data.subscriptions.length} subscription entries`);
   } else {
-    console.warn("⚠️  No subscription data found to save");
+    console.warn("⚠️ No subscription data found to save");
   }
 
 }
